@@ -1,0 +1,27 @@
+# Secrets — never commit
+.env
+.env.local
+*.pem
+*.key
+*-secret.*
+
+# Real KV config (the .example.json is the only one tracked)
+worker/client-configs/__agency.json
+
+# Wrangler artifacts
+.wrangler/
+node_modules/
+*.log
+
+# OS junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# Local backups created by deploy script
+.backups/

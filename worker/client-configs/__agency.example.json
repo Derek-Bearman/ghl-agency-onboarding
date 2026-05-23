@@ -1,0 +1,42 @@
+{
+  "_notes": "Agency-level config for Acme Agency onboarding routes. NOT a client lead-capture entry — this drives GET /agency/contact and POST /agency/onboarding.",
+  "locationId": "YOUR_GHL_LOCATION_ID",
+  "pit": "REPLACE_WITH_YOUR_GHL_PIT",
+
+  
+  "agencyPIT": "REPLACE_WITH_YOUR_GHL_PIT", 
+  "agencyLocationId": "YOUR_GHL_LOCATION_ID" ,
+
+  "allowedOrigins": [
+    "https://youragency.com",
+    "https://onboarding.youragency.com"
+  ],
+
+  "customFieldMapping": {
+    "ein":                  "contact.ein",
+    "legal_name":           "contact.legal_business_name",
+    "service_area":         "contact.service_area",
+    "domain_first":         "contact.domain_primary",
+    "domain_second":        "contact.domain_alternate",
+    "services_offered":     "contact.services_offered",
+    "lead_magnet":          "contact.lead_magnet_offer",
+    "business_hours_days":  "contact.business_hours_days",
+    "business_hours_start": "contact.business_hours_open",
+    "business_hours_end":   "contact.business_hours_close",
+    "emergency_service":    "contact.emergency_after_hours",
+    "logo_url":             "contact.logo_url",
+    "brand_color_primary":  "contact.brand_color_primary",
+    "brand_color_accent":   "contact.brand_color_accent",
+    "tone":                 "contact.brand_tone",
+    "differentiator":       "contact.key_differentiator",
+    "facebook_url":         "contact.facebook_page_url",
+    "gmb_status":           "contact.gmb_status",
+    "reviews_url":          "contact.review_gmb_url",
+    "online_notes":         "contact.notes_online_presence",
+    "has_customer_list":    "contact.has_customer_list",
+    "customer_notes":       "contact.notes_customer_list",
+    "site_notes":           "contact.notes_site_requests",
+    "client_questions":     "contact.client_questions",
+    "onboarding_status":    "contact.onboarding_status"
+  }
+}

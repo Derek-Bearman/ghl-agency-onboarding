@@ -1,0 +1,1387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Client Onboarding — Acme Agency</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      line-height: 1.6;
+    }
+
+    /* ── Config (edit these to rebrand) ── */
+    :root {
+      --brand-primary: #1a1a2e;
+      --brand-accent:  #f97316;
+      --brand-name:    "Acme Agency";
+    }
+
+    /* ── Header ── */
+    .header {
+      background: linear-gradient(135deg, var(--brand-primary) 0%, #16213e 100%);
+      color: #fff;
+      padding: 2.25rem 2rem 1.75rem;
+      text-align: center;
+    }
+    .header .agency-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.18em;
+      color: #94a3b8;
+      margin-bottom: 0.4rem;
+    }
+    .header h1 { font-size: 1.6rem; font-weight: 700; margin-bottom: 0.4rem; }
+    .header .subhead { color: #94a3b8; font-size: 0.9rem; max-width: 500px; margin: 0 auto; }
+
+    /* ── Loading / error states ── */
+    #loadingBanner {
+      display: none;
+      background: #eff6ff;
+      border-bottom: 2px solid #bfdbfe;
+      text-align: center;
+      padding: 0.75rem 1rem;
+      font-size: 0.87rem;
+      color: #1e40af;
+    }
+    #errorBanner {
+      display: none;
+      background: #fef2f2;
+      border-bottom: 2px solid #fca5a5;
+      text-align: center;
+      padding: 0.75rem 1rem;
+      font-size: 0.87rem;
+      color: #991b1b;
+    }
+
+    /* ── Greeting banner (shown when pre-fill succeeds) ── */
+    #greetingBanner {
+      display: none;
+      background: #f0fdf4;
+      border-bottom: 2px solid #86efac;
+      text-align: center;
+      padding: 0.75rem 1rem;
+      font-size: 0.87rem;
+      color: #15803d;
+    }
+
+    /* ── Progress bar ── */
+    .progress-bar  { background: #e2e8f0; height: 4px; }
+    .progress-fill { background: var(--brand-accent); height: 4px; width: 0%; transition: width 0.4s ease; }
+
+    /* ── Main layout ── */
+    .container {
+      max-width: 680px;
+      margin: 2rem auto;
+      padding: 0 1.25rem 4rem;
+    }
+
+    /* ── Section cards ── */
+    .section {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 1.75rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      margin-bottom: 1.4rem;
+    }
+    .section-icon {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; flex-shrink: 0; margin-top: 1px;
+    }
+    .icon-orange { background:#fff7ed; color:#f97316; }
+    .icon-blue   { background:#eff6ff; color:#3b82f6; }
+    .icon-green  { background:#f0fdf4; color:#22c55e; }
+    .icon-purple { background:#faf5ff; color:#a855f7; }
+    .icon-gray   { background:#f8fafc; color:#64748b; }
+
+    .section-title    { font-size: 1.05rem; font-weight: 700; color: #1a1a2e; }
+    .section-subtitle { font-size: 0.8rem; color: #64748b; margin-top: 0.1rem; }
+
+    /* ── Fields ── */
+    .field { margin-bottom: 1.2rem; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 0.87rem; font-weight: 600;
+      color: #374151; margin-bottom: 0.3rem;
+    }
+    .required { color: #ef4444; margin-left: 2px; }
+    .optional  { font-weight: 400; color: #94a3b8; font-size: 0.77rem; margin-left: 4px; }
+
+    input[type="text"], input[type="email"], input[type="tel"],
+    input[type="url"], textarea, select {
+      width: 100%;
+      padding: 0.58rem 0.85rem;
+      border: 1.5px solid #d1d5db;
+      border-radius: 8px;
+      font-size: 0.91rem;
+      color: #1a1a2e;
+      background: #fff;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--brand-accent);
+      box-shadow: 0 0 0 3px rgba(249,115,22,0.12);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* Pre-filled field treatment */
+    .prefilled-wrap { position: relative; }
+    .prefilled-badge {
+      display: none;
+      position: absolute;
+      right: 10px; top: 50%;
+      transform: translateY(-50%);
+      font-size: 0.72rem;
+      color: #16a34a;
+      background: #dcfce7;
+      border-radius: 4px;
+      padding: 1px 6px;
+      pointer-events: none;
+    }
+    .prefilled-wrap.has-value .prefilled-badge { display: block; }
+    .prefilled-wrap.has-value input,
+    .prefilled-wrap.has-value select,
+    .prefilled-wrap.has-value textarea {
+      border-color: #86efac;
+      background: #f0fdf4;
+    }
+
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media (max-width: 500px) { .field-row { grid-template-columns: 1fr; } }
+
+    .hint {
+      font-size: 0.78rem; color: #64748b;
+      margin-top: 0.25rem; line-height: 1.5;
+    }
+    .hint strong { color: #374151; }
+    .hint a { color: #3b82f6; text-decoration: none; }
+    .hint a:hover { text-decoration: underline; }
+
+    /* ── How-to guide blocks ── */
+    .how-to {
+      margin-top: 0.6rem;
+      border: 1.5px solid #e0e7ff;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .how-to summary {
+      cursor: pointer;
+      background: #eef2ff;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.79rem;
+      font-weight: 600;
+      color: #4338ca;
+      list-style: none;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .how-to summary::-webkit-details-marker { display: none; }
+    .how-to[open] summary { border-bottom: 1.5px solid #c7d2fe; }
+    .how-to-body {
+      background: #f5f3ff;
+      padding: 0.85rem 1rem;
+      font-size: 0.8rem;
+      color: #3730a3;
+      line-height: 1.6;
+    }
+    .how-to-body ol { padding-left: 1.2rem; }
+    .how-to-body li { margin-bottom: 0.3rem; }
+    .how-to-body a { color: #4338ca; font-weight: 600; }
+
+    /* ── Callout ── */
+    .callout {
+      background: #fffbeb;
+      border: 1.5px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.8rem 1rem;
+      font-size: 0.82rem;
+      color: #78350f;
+      line-height: 1.5;
+      margin-bottom: 1.2rem;
+    }
+    .callout strong { color: #92400e; }
+    .callout-blue {
+      background: #eff6ff; border-color: #bfdbfe; color: #1e3a8a;
+    }
+    .callout-blue strong { color: #1e3a8a; }
+
+    /* ── Domain chips ── */
+    .domain-chips { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
+    .domain-chip {
+      background: #eff6ff; border: 1.5px solid #bfdbfe;
+      border-radius: 20px; padding: 0.28rem 0.75rem;
+      font-size: 0.78rem; color: #1d4ed8; cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .domain-chip:hover  { background: #dbeafe; border-color: #3b82f6; }
+    .domain-chip.active { background: #1d4ed8; color: #fff; border-color: #1d4ed8; }
+
+    /* ── Day checkboxes ── */
+    .day-grid { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .day-chip {
+      display: flex; align-items: center;
+      background: #f8fafc; border: 1.5px solid #e2e8f0;
+      border-radius: 8px; padding: 0.4rem 0.7rem;
+      font-size: 0.84rem; color: #374151;
+      cursor: pointer; gap: 0.35rem;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .day-chip:hover { border-color: var(--brand-accent); background: #fff7ed; }
+    .day-chip input[type="checkbox"] { accent-color: var(--brand-accent); width: 14px; height: 14px; cursor: pointer; }
+
+    /* ── Submit area ── */
+    .submit-area { text-align: center; margin-top: 1.75rem; }
+    .btn-submit {
+      background: var(--brand-accent); color: #fff;
+      border: none; border-radius: 10px;
+      padding: 0.82rem 2.5rem;
+      font-size: 1rem; font-weight: 700; cursor: pointer;
+      transition: background 0.15s, transform 0.1s;
+      letter-spacing: 0.02em;
+    }
+    .btn-submit:hover   { background: #ea6a0a; }
+    .btn-submit:active  { transform: scale(0.98); }
+    .btn-submit:disabled { background: #94a3b8; cursor: not-allowed; }
+    .submit-note { font-size: 0.78rem; color: #94a3b8; margin-top: 0.65rem; }
+
+    /* ── Success ── */
+    .success-section {
+      display: none;
+      background: #fff;
+      border: 2px solid #86efac;
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      margin-top: 2rem;
+    }
+    .success-section h2 { color: #15803d; font-size: 1.25rem; margin-bottom: 0.5rem; }
+    .success-section p  { color: #166534; font-size: 0.88rem; }
+
+    /* ── Print output ── */
+    .print-output {
+      display: none;
+      background: #1e293b;
+      border-radius: 10px;
+      padding: 1.4rem;
+      margin-top: 1.5rem;
+      color: #e2e8f0;
+      font-family: 'Courier New', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .copy-btn {
+      display: none;
+      background: #334155; color: #e2e8f0;
+      border: none; border-radius: 6px;
+      padding: 0.38rem 0.9rem;
+      font-size: 0.79rem; cursor: pointer;
+      margin-top: 0.6rem;
+      transition: background 0.15s;
+    }
+    .copy-btn:hover { background: #475569; }
+
+    /* ── Cold-URL intake screen ── */
+    #intakeScreen { display: none; }
+    #intakeScreen.active { display: block; }
+    .intake-container {
+      max-width: 540px;
+      margin: 3rem auto;
+      padding: 0 1.25rem 4rem;
+    }
+    .intake-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      padding: 2.25rem 2rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .intake-card h2 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--brand-primary);
+      margin-bottom: 0.4rem;
+    }
+    .intake-card .intake-sub {
+      color: #64748b;
+      font-size: 0.93rem;
+      margin-bottom: 1.5rem;
+      line-height: 1.5;
+    }
+    .intake-card label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #334155;
+      margin-bottom: 0.35rem;
+      margin-top: 1rem;
+    }
+    .intake-card label:first-of-type { margin-top: 0; }
+    .intake-card input {
+      width: 100%;
+      padding: 0.7rem 0.85rem;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .intake-card input:focus {
+      outline: none;
+      border-color: var(--brand-accent);
+      box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.15);
+    }
+    .intake-card .intake-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+    }
+    .intake-card .intake-row label { margin-top: 0; }
+    .intake-card .intake-hint {
+      font-size: 0.8rem;
+      color: #94a3b8;
+      margin-top: 0.3rem;
+    }
+    .intake-card .intake-submit {
+      margin-top: 1.75rem;
+      width: 100%;
+      background: var(--brand-accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.9rem 1.2rem;
+      font-size: 0.97rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, transform 0.08s;
+    }
+    .intake-card .intake-submit:hover:not(:disabled) { background: #ea580c; transform: translateY(-1px); }
+    .intake-card .intake-submit:disabled { background: #cbd5e1; cursor: not-allowed; }
+    .intake-card .intake-error {
+      display: none;
+      background: #fef2f2;
+      border: 1px solid #fca5a5;
+      color: #991b1b;
+      padding: 0.7rem 0.9rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+    }
+    .intake-card .intake-error.show { display: block; }
+  </style>
+</head>
+<body>
+
+<!-- ── CONFIG — update these two values ──────────────────── -->
+<script>
+  // CF Worker base URL (no trailing slash)
+  const WORKER_BASE = 'https://your-worker.workers.dev';
+  // Agency name displayed in the header
+  const AGENCY_NAME = 'Acme Agency'; // ← change to your agency name
+</script>
+<!-- ─────────────────────────────────────────────────────── -->
+
+<div class="header">
+  <div class="agency-label" id="agencyLabel">Acme Agency</div>
+  <h1 id="headerTitle">Client Onboarding</h1>
+  <p class="subhead" id="headerSubhead">
+    Fill this out so we can get your system set up. Most people finish in 10–15 minutes.
+  </p>
+</div>
+<div id="loadingBanner">⏳ Loading your information…</div>
+<div id="greetingBanner" id="greetingBanner"></div>
+<div id="errorBanner"></div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+
+<!-- ══ COLD-URL INTAKE SCREEN ══════════════════════════════
+     Shown only when the form is loaded without ?cid= in the URL.
+     Captures name + email, upserts a GHL contact, then transitions
+     into the full onboarding form below.                    -->
+<div id="intakeScreen">
+  <div class="intake-container">
+    <div class="intake-card">
+      <h2>Let's start with the basics</h2>
+      <p class="intake-sub">
+        Looks like you arrived here directly. Just need a few details to get you set up — then we'll dive into the full onboarding.
+      </p>
+
+      <div class="intake-row">
+        <div>
+          <label for="intake-first">First name <span class="required">*</span></label>
+          <input type="text" id="intake-first" autocomplete="given-name" required />
+        </div>
+        <div>
+          <label for="intake-last">Last name <span class="required">*</span></label>
+          <input type="text" id="intake-last" autocomplete="family-name" required />
+        </div>
+      </div>
+
+      <label for="intake-email">Email <span class="required">*</span></label>
+      <input type="email" id="intake-email" autocomplete="email" required />
+      <div class="intake-hint">We'll match you to your record if you already have one.</div>
+
+      <label for="intake-company">Business name <span class="optional">(optional)</span></label>
+      <input type="text" id="intake-company" autocomplete="organization" />
+
+      <label for="intake-phone">Phone <span class="optional">(optional)</span></label>
+      <input type="tel" id="intake-phone" autocomplete="tel" />
+
+      <div class="intake-error" id="intakeError"></div>
+
+      <button type="button" class="intake-submit" id="intakeSubmit">Continue →</button>
+    </div>
+  </div>
+</div>
+
+<div class="container" id="mainContainer">
+  <form id="onboardingForm" novalidate>
+
+    <!-- hidden field carries contact ID throughout -->
+    <input type="hidden" name="cid" id="hiddenCid" />
+
+    <!-- ══ SECTION 1 — Business Basics ══════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-orange">🏢</div>
+        <div>
+          <div class="section-title">Business Basics</div>
+          <div class="section-subtitle">How your business is registered</div>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>First Name <span class="required">*</span></label>
+          <div class="prefilled-wrap" id="pw-first">
+            <input type="text" name="firstName" id="f-firstName" placeholder="Jane" required />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Last Name <span class="required">*</span></label>
+          <div class="prefilled-wrap" id="pw-last">
+            <input type="text" name="lastName" id="f-lastName" placeholder="[example client]" required />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Business Display Name <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-biz">
+          <input type="text" name="companyName" id="f-companyName" placeholder="[example client]'s Heating and Cooling" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">The name your customers will see on your website, Google listing, and text messages.</div>
+      </div>
+
+      <div class="field">
+        <label>Legal Business Name <span class="optional">(if different from above — LLC, Inc., etc.)</span></label>
+        <div class="prefilled-wrap" id="pw-legal">
+          <input type="text" name="legalName" id="f-legalName" placeholder="[example client]'s Heating and Cooling LLC" />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">Only fill this in if you registered an LLC or corporation. Sole proprietors can leave it blank.</div>
+      </div>
+
+      <div class="field">
+        <label>EIN — Employer Identification Number <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-ein">
+          <input type="text" name="ein" id="f-ein" placeholder="12-3456789" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">A 9-digit number in the format XX-XXXXXXX that the IRS uses to identify your business. We need this to register your business for text messaging.</div>
+        <details class="how-to">
+          <summary>📋 How to find or get your EIN</summary>
+          <div class="how-to-body">
+            <ol>
+              <li><strong>Already have one?</strong> Check the IRS confirmation letter you received (Form CP 575), or look on any business tax return you've filed.</li>
+              <li><strong>Don't have one yet?</strong> Apply free and instantly at <a href="https://www.irs.gov/businesses/small-businesses-self-employed/apply-for-an-employer-identification-number-ein-online" target="_blank">irs.gov → Apply for an EIN Online</a>. Takes about 5 minutes. You get your number immediately.</li>
+              <li>If you're a sole proprietor with no employees, you technically can use your Social Security Number instead — but getting an EIN is free and keeps your SSN private.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 2 — Contact & Location ════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-blue">📱</div>
+        <div>
+          <div class="section-title">Contact & Location</div>
+          <div class="section-subtitle">How customers reach you and where you work</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Your Cell Phone <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-phone">
+          <input type="tel" name="phone" id="f-phone" placeholder="(636) 555-0100" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">We'll provision a dedicated business line and forward it to this number. You don't need a second phone.</div>
+      </div>
+
+      <div class="field">
+        <label>Your Email Address <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-email">
+          <input type="email" name="email" id="f-email" placeholder="you@example.com" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">New lead alerts will land here. Your personal Gmail is fine for now — we'll set up a branded address later.</div>
+      </div>
+
+      <div class="field">
+        <label>Home / Mailing Address <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-street">
+          <input type="text" name="address1" id="f-address1" placeholder="123 Main St" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint" style="margin-bottom:0.45rem">Used for your Google Business Profile setup — won't be shown publicly since you're a service-area business.</div>
+        <div class="field-row" style="margin-top:0.45rem">
+          <div class="prefilled-wrap" id="pw-city">
+            <input type="text" name="city" id="f-city" placeholder="Saint Peters" />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+          <div class="prefilled-wrap" id="pw-state">
+            <input type="text" name="state" id="f-state" placeholder="MO" />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+        </div>
+        <div class="field-row" style="margin-top:0.5rem">
+          <div class="prefilled-wrap" id="pw-zip">
+            <input type="text" name="postalCode" id="f-postalCode" placeholder="63376" />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+          <input type="text" name="country" id="f-country" value="USA" placeholder="USA" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Service Area <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-area">
+          <input type="text" name="serviceArea" id="f-serviceArea"
+            placeholder="e.g., St. Charles County, O'Fallon, Saint Peters, MO" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">The cities and counties where you take jobs. Will appear on your website and Google listing.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 3 — Website & Domain ══════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-blue">🌐</div>
+        <div>
+          <div class="section-title">Website & Domain</div>
+          <div class="section-subtitle">Your web address — we'll register it for you (~$12/year)</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Domain — First Choice <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-domain1">
+          <input type="text" name="domainFirst" id="f-domainFirst"
+            placeholder="yourbusinessname.com" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">Short and easy to remember is best. No spaces or special characters.
+          <span id="domainSuggestions"></span>
+        </div>
+        <div class="domain-chips" id="domainChips"></div>
+        <details class="how-to" style="margin-top:0.6rem">
+          <summary>🌐 How to choose a good domain name</summary>
+          <div class="how-to-body">
+            <ol>
+              <li>Keep it short — ideally under 20 characters. Less typing = easier for customers.</li>
+              <li>Use your business name + city or service type if it's too common. E.g., <em>burkeshvacstl.com</em></li>
+              <li>Stick to <strong>.com</strong> if possible — it's what people type automatically.</li>
+              <li>Check if it's available: <a href="https://www.namecheap.com" target="_blank">namecheap.com</a> — type the name in the search bar.</li>
+              <li>Don't buy it yourself — just pick your top 2 choices and we'll handle the purchase.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+
+      <div class="field">
+        <label>Domain — Second Choice <span class="optional">(backup if first is taken)</span></label>
+        <div class="prefilled-wrap" id="pw-domain2">
+          <input type="text" name="domainSecond" id="f-domainSecond" placeholder="yourbusinessname-[city].com" />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 4 — Services & Offer ══════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-orange">🔧</div>
+        <div>
+          <div class="section-title">Services & Offer</div>
+          <div class="section-subtitle">What you do and how you get people in the door</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Services You Offer <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-services">
+          <textarea name="servicesOffered" id="f-servicesOffered" required
+            placeholder="List each service on its own line, e.g.:
+AC Repair
+Furnace Repair
+AC Installation
+Furnace Installation
+System Diagnostics
+Annual Tune-Up / Maintenance"></textarea>
+          <span class="prefilled-badge" style="top:12px; transform:none;">✓ On file</span>
+        </div>
+        <div class="hint">These will appear on your website and as choices on your contact form. Keep names short and clear.</div>
+      </div>
+
+      <div class="field">
+        <label>Free Offer / Lead Magnet <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-magnet">
+          <select name="leadMagnet" id="f-leadMagnet" required>
+            <option value="">— Pick one —</option>
+            <option value="Free Estimate">Free Estimate</option>
+            <option value="Free Diagnostic">Free Diagnostic</option>
+            <option value="Free Service Call Estimate">Free Service Call Estimate</option>
+            <option value="Free System Inspection">Free System Inspection</option>
+            <option value="Free Quote">Free Quote</option>
+            <option value="Free Consultation">Free Consultation</option>
+          </select>
+          <span class="prefilled-badge" style="top:50%; transform:translateY(-50%);">✓ On file</span>
+        </div>
+        <div class="hint">This is what you offer in exchange for a customer's contact info. "Free Estimate" is the standard in service trades — it sets an expectation of a visit, not just a phone quote.</div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 5 — Business Hours ════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-green">🕐</div>
+        <div>
+          <div class="section-title">Business Hours</div>
+          <div class="section-subtitle">When you're available to take jobs and calls</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Days You Work <span class="required">*</span></label>
+        <div class="day-grid" id="dayGrid">
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Mon" checked /><span>Mon</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Tue" checked /><span>Tue</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Wed" checked /><span>Wed</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Thu" checked /><span>Thu</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Fri" checked /><span>Fri</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Sat" /><span>Sat</span></label>
+          <label class="day-chip"><input type="checkbox" name="hoursDays" value="Sun" /><span>Sun</span></label>
+        </div>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Start Time</label>
+          <input type="text" name="hoursStart" id="f-hoursStart" placeholder="7:00 AM" />
+        </div>
+        <div class="field">
+          <label>End Time</label>
+          <input type="text" name="hoursEnd" id="f-hoursEnd" placeholder="6:00 PM" />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>After-Hours / Emergency Service</label>
+        <select name="emergencyService" id="f-emergencyService">
+          <option value="no">No — regular hours only</option>
+          <option value="existing_only">Yes, but only for existing customers</option>
+          <option value="yes">Yes, for anyone</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 6 — Brand ══════════════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-purple">🎨</div>
+        <div>
+          <div class="section-title">Brand & Look</div>
+          <div class="section-subtitle">How your website and messages will look and feel</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Logo File <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-logo">
+          <input type="text" name="logoUrl" id="f-logoUrl"
+            placeholder="Paste a Google Drive or Dropbox share link" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <details class="how-to">
+          <summary>📤 How to share your logo file</summary>
+          <div class="how-to-body">
+            <ol>
+              <li><strong>From Google Drive:</strong> Right-click your logo file → Share → "Anyone with the link" → Copy link → paste it here.</li>
+              <li><strong>From your phone:</strong> Text or email the logo file directly to your contact at Acme Agency.</li>
+              <li><strong>File format:</strong> PNG or JPG works great. If you have it as a PDF or AI file, even better — more detail to work with.</li>
+              <li><strong>Don't have a logo yet?</strong> Type "no logo yet" and we'll design a simple one for you as part of setup.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>Primary Brand Color <span class="optional">(hex or description)</span></label>
+          <div class="prefilled-wrap" id="pw-color1">
+            <input type="text" name="brandColorPrimary" id="f-brandColorPrimary" placeholder="#1a3a6b or 'dark blue'" />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+        </div>
+        <div class="field">
+          <label>Accent Color <span class="optional">(hex or description)</span></label>
+          <div class="prefilled-wrap" id="pw-color2">
+            <input type="text" name="brandColorAccent" id="f-brandColorAccent" placeholder="#f97316 or 'orange'" />
+            <span class="prefilled-badge">✓ On file</span>
+          </div>
+        </div>
+      </div>
+      <div class="hint" style="margin-top:-0.75rem; margin-bottom:1.2rem;">If you're not sure, describe what's on your logo (e.g., "navy and white") and we'll match it.</div>
+
+      <div class="field">
+        <label>Tone / Personality</label>
+        <div class="prefilled-wrap" id="pw-tone">
+          <select name="tone" id="f-tone">
+            <option value="professional_friendly">Professional and friendly — trustworthy neighbor, not a big corp</option>
+            <option value="straight_shooter">Straight shooter — no fluff, just "we'll fix it"</option>
+            <option value="family_business">Family business — warm, personal, community-first</option>
+            <option value="premium">Premium / expert — certified, high-end, no-shortcuts</option>
+          </select>
+          <span class="prefilled-badge" style="top:50%; transform:translateY(-50%);">✓ On file</span>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Why should customers choose you? <span class="optional">(one sentence, in your own words)</span></label>
+        <div class="prefilled-wrap" id="pw-diff">
+          <textarea name="differentiator" id="f-differentiator" style="min-height:65px;"
+            placeholder="e.g., 'I've been fixing HVAC in St. Charles County for 8 years and I actually answer my phone.'"></textarea>
+          <span class="prefilled-badge" style="top:12px; transform:none;">✓ On file</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 7 — Online Presence ════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-blue">📣</div>
+        <div>
+          <div class="section-title">Online Presence</div>
+          <div class="section-subtitle">Your existing accounts and reviews</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Facebook Business Page URL <span class="required">*</span></label>
+        <div class="prefilled-wrap" id="pw-fb">
+          <input type="url" name="facebookUrl" id="f-facebookUrl"
+            placeholder="https://facebook.com/YourBusinessPage" required />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <details class="how-to">
+          <summary>📘 How to find your Facebook page URL</summary>
+          <div class="how-to-body">
+            <ol>
+              <li>Open Facebook on your phone or computer.</li>
+              <li>Tap the three-line menu (≡) → your business page name.</li>
+              <li>On the page, tap the three dots (•••) → "Copy link" — OR just look at the web address in your browser. It'll start with <em>facebook.com/</em>.</li>
+              <li>Paste the full URL here. It should look like <em>facebook.com/[example client]sHVAC</em> or similar.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+
+      <div class="field">
+        <label>Google Business Profile status</label>
+        <div class="prefilled-wrap" id="pw-gmb">
+          <select name="gmbStatus" id="f-gmbStatus">
+            <option value="none">I don't have one yet</option>
+            <option value="claimed_unverified">I claimed it but haven't verified it</option>
+            <option value="claimed_verified">Claimed and verified</option>
+            <option value="unsure">Not sure</option>
+          </select>
+          <span class="prefilled-badge" style="top:50%; transform:translateY(-50%);">✓ On file</span>
+        </div>
+        <details class="how-to">
+          <summary>📍 What is a Google Business Profile and how do I get one?</summary>
+          <div class="how-to-body">
+            <ol>
+              <li>A Google Business Profile (GBP) is the listing that shows up on Google Maps and in search results when someone looks for your business or services nearby. It's free.</li>
+              <li>Go to <a href="https://business.google.com" target="_blank">business.google.com</a> and sign in with your Google account.</li>
+              <li>Click "Add your business" → enter your business name and category (HVAC Contractor) → choose "Service area business" since you don't have a storefront.</li>
+              <li>Enter your service areas → add your phone number and website (leave website blank for now).</li>
+              <li>Choose a verification method — Google may ask for a video walkthrough or a postcard to your address. <strong>The postcard takes 5–14 days.</strong> Start this as early as possible.</li>
+              <li>Once verified, we'll collect your Google review link and wire it into your system.</li>
+            </ol>
+          </div>
+        </details>
+      </div>
+
+      <div class="field">
+        <label>Existing reviews page URL <span class="optional">(Google listing, Facebook reviews, etc.)</span></label>
+        <div class="prefilled-wrap" id="pw-reviews">
+          <input type="url" name="reviewsUrl" id="f-reviewsUrl"
+            placeholder="https://facebook.com/YourPage/reviews" />
+          <span class="prefilled-badge">✓ On file</span>
+        </div>
+        <div class="hint">Paste a link if you have existing reviews anywhere. We'll reference them in your website copy.</div>
+      </div>
+
+      <div class="field">
+        <label>Anything else about your online presence? <span class="optional"></span></label>
+        <textarea name="onlineNotes" id="f-onlineNotes" style="min-height:60px;"
+          placeholder="e.g., 'I have 15 five-star Facebook reviews from personal jobs' or 'My wife set up an Instagram for the business'"></textarea>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 8 — Past Customers ════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-green">👥</div>
+        <div>
+          <div class="section-title">Past Customers</div>
+          <div class="section-subtitle">Your fastest early leads — people who already trust you</div>
+        </div>
+      </div>
+
+      <div class="callout callout-blue">
+        <strong>Why this matters:</strong> If you have contact info for anyone you've worked on before — even just names and cell numbers saved in your phone — we can send them a personal message letting them know you've started your own business. This often generates the first calls before any advertising runs.
+      </div>
+
+      <div class="field">
+        <label>Do you have contact info for any past customers?</label>
+        <select name="hasCustomerList" id="f-hasCustomerList" onchange="toggleCustomerFields()">
+          <option value="yes">Yes — I have names, phones, and/or emails I can share</option>
+          <option value="some">Kind of — it's in my phone or saved informally somewhere</option>
+          <option value="no">No — I don't have any saved contact info</option>
+        </select>
+      </div>
+
+      <div id="customerListSection" class="field">
+        <label>Best way to share the list</label>
+        <select name="customerListFormat">
+          <option value="google_sheet">I'll put it in a Google Sheet and share the link</option>
+          <option value="csv">I have a CSV / Excel file I can email</option>
+          <option value="text">I'll text it directly to you</option>
+          <option value="describe">I'll just describe it below for now</option>
+        </select>
+        <div class="hint">Even a rough list works — names + phone numbers from your phone contacts is enough to get started.</div>
+      </div>
+
+      <div class="field">
+        <label>Notes on past customers <span class="optional"></span></label>
+        <textarea name="customerNotes" id="f-customerNotes" style="min-height:55px;"
+          placeholder="e.g., 'About 30 contacts from jobs I ran personally at my last company'"></textarea>
+      </div>
+    </div>
+
+    <!-- ══ SECTION 9 — Anything Else ══════════════════════════ -->
+    <div class="section">
+      <div class="section-header">
+        <div class="section-icon icon-gray">💬</div>
+        <div>
+          <div class="section-title">Anything Else?</div>
+          <div class="section-subtitle">Questions, preferences, things we should know</div>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Is there anything specific you want the website to say or not say?</label>
+        <textarea name="siteNotes" id="f-siteNotes" style="min-height:65px;"
+          placeholder="e.g., 'I don't want to promise same-day service' or 'I want to mention I'm licensed and insured in Missouri'"></textarea>
+      </div>
+
+      <div class="field">
+        <label>Any questions or concerns before we get started?</label>
+        <textarea name="clientQuestions" id="f-clientQuestions" style="min-height:65px;"
+          placeholder="Anything on your mind — pricing, what to expect, how long it takes…"></textarea>
+      </div>
+    </div>
+
+    <!-- ══ SUBMIT ══════════════════════════════════════════════ -->
+    <div class="submit-area">
+      <button type="button" class="btn-submit" id="submitBtn" onclick="handleSubmit()">
+        Submit My Info →
+      </button>
+      <div class="submit-note">Your information is shared only with your Acme Agency contact. We don't spam.</div>
+    </div>
+
+  </form>
+
+  <!-- Success + summary -->
+  <div class="success-section" id="successSection">
+    <h2>✅ All set — thank you!</h2>
+    <p>Your information has been received. Your Acme Agency contact will be in touch shortly with next steps.<br/>Your summary is below for your records.</p>
+  </div>
+  <div class="print-output" id="printOutput"></div>
+  <button class="copy-btn" id="copyBtn" onclick="copyOutput()">📋 Copy Summary</button>
+
+</div><!-- end .container -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+// CONFIG — set at top of <body> by the WORKER_BASE var
+// ═══════════════════════════════════════════════════════
+
+// ── Helpers ────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const qn = name => document.querySelector(`[name="${name}"]`);
+
+function getCheckedValues(name) {
+  return Array.from(document.querySelectorAll(`[name="${name}"]:checked`))
+              .map(el => el.value).join(', ');
+}
+
+function toggleCustomerFields() {
+  const val = $('f-hasCustomerList').value;
+  $('customerListSection').style.display = val === 'no' ? 'none' : 'block';
+}
+toggleCustomerFields();
+
+// ── Domain suggestions (built from company name) ───────
+function buildDomainSuggestions(biz) {
+  if (!biz) return;
+  const slug = biz.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .replace(/\s+/g, '')
+    .slice(0, 25);
+  const suggestions = [
+    slug + '.com',
+    slug + 'stl.com',
+    slug + 'mo.com',
+    slug.replace('heating', 'hvac') + '.com'
+  ].filter((v, i, a) => v !== slug + '.com' || i === 0) // dedupe
+   .slice(0, 4);
+
+  const chips = $('domainChips');
+  chips.innerHTML = '';
+  suggestions.forEach(s => {
+    const c = document.createElement('span');
+    c.className = 'domain-chip';
+    c.textContent = s;
+    c.onclick = () => {
+      $('f-domainFirst').value = s;
+      chips.querySelectorAll('.domain-chip').forEach(x => x.classList.remove('active'));
+      c.classList.add('active');
+      markPrefilled('pw-domain1', s);
+    };
+    chips.appendChild(c);
+  });
+}
+
+// ── Pre-fill visual treatment ──────────────────────────
+function markPrefilled(wrapperId, value) {
+  const wrap = $(wrapperId);
+  if (!wrap) return;
+  if (value && String(value).trim()) {
+    wrap.classList.add('has-value');
+  } else {
+    wrap.classList.remove('has-value');
+  }
+}
+
+// ── Set field value + mark prefilled ──────────────────
+function setField(wrapperId, fieldId, value) {
+  const el = $(fieldId);
+  if (!el || !value) return;
+  el.value = value;
+  markPrefilled(wrapperId, value);
+}
+
+// ── Load contact data from CF Worker ─────────────────
+async function loadContact(cid) {
+  $('loadingBanner').style.display = 'block';
+  try {
+    const resp = await fetch(`${WORKER_BASE}/agency/contact?cid=${encodeURIComponent(cid)}`);
+    if (!resp.ok) throw new Error(resp.statusText);
+    const data = await resp.json();
+
+    if (!data.ok || !data.contact) throw new Error('No contact data');
+    const c = data.contact;
+    const cf = c.customFields || {};
+
+    // Standard GHL fields
+    setField('pw-first',  'f-firstName',  c.firstName);
+    setField('pw-last',   'f-lastName',   c.lastName);
+    setField('pw-biz',    'f-companyName',c.companyName);
+    setField('pw-phone',  'f-phone',      c.phone);
+    setField('pw-email',  'f-email',      c.email);
+    setField('pw-street', 'f-address1',   c.address1);
+    setField('pw-city',   'f-city',       c.city);
+    setField('pw-state',  'f-state',      c.state);
+    setField('pw-zip',    'f-postalCode', c.postalCode);
+
+    // Custom fields
+    setField('pw-legal',    'f-legalName',       cf.legal_name);
+    setField('pw-ein',      'f-ein',             cf.ein);
+    setField('pw-area',     'f-serviceArea',     cf.service_area);
+    setField('pw-domain1',  'f-domainFirst',     cf.domain_first);
+    setField('pw-domain2',  'f-domainSecond',    cf.domain_second);
+    setField('pw-services', 'f-servicesOffered', cf.services_offered);
+    setField('pw-magnet',   'f-leadMagnet',      cf.lead_magnet);
+    setField('pw-logo',     'f-logoUrl',         cf.logo_url);
+    setField('pw-color1',   'f-brandColorPrimary',cf.brand_color_primary);
+    setField('pw-color2',   'f-brandColorAccent', cf.brand_color_accent);
+    setField('pw-tone',     'f-tone',            cf.tone);
+    setField('pw-diff',     'f-differentiator',  cf.differentiator);
+    setField('pw-fb',       'f-facebookUrl',     cf.facebook_url);
+    setField('pw-gmb',      'f-gmbStatus',       cf.gmb_status);
+    setField('pw-reviews',  'f-reviewsUrl',      cf.reviews_url);
+
+    // Hours days checkboxes
+    if (cf.business_hours_days) {
+      const days = cf.business_hours_days.split(',').map(d => d.trim());
+      document.querySelectorAll('[name="hoursDays"]').forEach(cb => {
+        cb.checked = days.includes(cb.value);
+      });
+    }
+    setField(null, 'f-hoursStart', cf.business_hours_start);
+    setField(null, 'f-hoursEnd',   cf.business_hours_end);
+
+    // Greeting
+    const name = c.firstName || 'there';
+    $('greetingBanner').textContent = `👋 Hi, ${name}! We've pre-filled what we already have. Just fill in the rest and hit Submit.`;
+    $('greetingBanner').style.display = 'block';
+
+    // Header personalisation
+    if (c.companyName) {
+      $('headerTitle').textContent = `${c.companyName} — Onboarding`;
+    }
+
+    // Domain suggestions from company name
+    buildDomainSuggestions(c.companyName);
+
+  } catch (err) {
+    console.warn('Pre-fill failed:', err);
+    $('errorBanner').textContent = '⚠️ Could not load your saved information — please fill in the form manually.';
+    $('errorBanner').style.display = 'block';
+  } finally {
+    $('loadingBanner').style.display = 'none';
+  }
+}
+
+// ── Progress bar ───────────────────────────────────────
+function updateProgress() {
+  const inputs = document.querySelectorAll('[required]');
+  let filled = 0;
+  inputs.forEach(i => { if (i.value.trim()) filled++; });
+  $('progressFill').style.width = Math.round((filled / inputs.length) * 100) + '%';
+}
+document.getElementById('onboardingForm').addEventListener('input', updateProgress);
+document.getElementById('onboardingForm').addEventListener('change', updateProgress);
+
+// ── Build summary string ───────────────────────────────
+function buildSummary() {
+  const g = name => (qn(name)?.value || '').trim();
+  return `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ARKTOS MARKETING — CLIENT ONBOARDING
+${g('companyName') || 'New Client'}
+Submitted: ${new Date().toLocaleString()}
+Contact ID: ${g('cid') || 'N/A'}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+── BUSINESS BASICS ──
+Owner:           ${g('firstName')} ${g('lastName')}
+Business Name:   ${g('companyName')}
+Legal Name:      ${g('legalName') || '(same)'}
+EIN:             ${g('ein')}
+
+── CONTACT & LOCATION ──
+Cell:            ${g('phone')}
+Email:           ${g('email')}
+Address:         ${g('address1')}, ${g('city')}, ${g('state')} ${g('postalCode')}
+Service Area:    ${g('serviceArea')}
+
+── WEBSITE ──
+Domain (1st):    ${g('domainFirst')}
+Domain (2nd):    ${g('domainSecond') || 'N/A'}
+
+── SERVICES & OFFER ──
+Services:
+${g('servicesOffered')}
+
+Lead Magnet:     ${g('leadMagnet')}
+
+── BUSINESS HOURS ──
+Days:            ${getCheckedValues('hoursDays')}
+Hours:           ${g('hoursStart')} – ${g('hoursEnd')}
+Emergency:       ${g('emergencyService')}
+
+── BRAND ──
+Logo:            ${g('logoUrl') || 'To be sent separately'}
+Primary Color:   ${g('brandColorPrimary') || 'Not specified'}
+Accent Color:    ${g('brandColorAccent') || 'Not specified'}
+Tone:            ${g('tone')}
+Differentiator:  ${g('differentiator') || 'Not provided'}
+
+── ONLINE PRESENCE ──
+Facebook:        ${g('facebookUrl')}
+GMB Status:      ${g('gmbStatus')}
+Reviews URL:     ${g('reviewsUrl') || 'N/A'}
+Notes:           ${g('onlineNotes') || 'None'}
+
+── PAST CUSTOMERS ──
+Has List:        ${g('hasCustomerList')}
+Notes:           ${g('customerNotes') || 'None'}
+
+── ADDITIONAL ──
+Site Notes:      ${g('siteNotes') || 'None'}
+Questions:       ${g('clientQuestions') || 'None'}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`.trim();
+}
+
+// ── Submit ─────────────────────────────────────────────
+async function handleSubmit() {
+  // Validation
+  const required = document.querySelectorAll('[required]');
+  let missing = [];
+  required.forEach(el => {
+    if (!el.value.trim()) {
+      el.style.borderColor = '#ef4444';
+      const lbl = el.closest('.field')?.querySelector('label');
+      if (lbl) missing.push(lbl.textContent.replace('*','').trim());
+    } else {
+      el.style.borderColor = '#d1d5db';
+    }
+  });
+  if (missing.length) {
+    alert('Please fill in required fields:\n• ' + missing.slice(0,5).join('\n• ') + (missing.length > 5 ? `\n• …and ${missing.length-5} more` : ''));
+    return;
+  }
+
+  const btn = $('submitBtn');
+  btn.textContent = 'Sending…';
+  btn.disabled = true;
+
+  const payload = {
+    cid:               qn('cid')?.value || null,
+    firstName:         qn('firstName')?.value,
+    lastName:          qn('lastName')?.value,
+    companyName:       qn('companyName')?.value,
+    phone:             qn('phone')?.value,
+    email:             qn('email')?.value,
+    address1:          qn('address1')?.value,
+    city:              qn('city')?.value,
+    state:             qn('state')?.value,
+    postalCode:        qn('postalCode')?.value,
+    customFields: {
+      legal_name:           qn('legalName')?.value,
+      ein:                  qn('ein')?.value,
+      service_area:         qn('serviceArea')?.value,
+      domain_first:         qn('domainFirst')?.value,
+      domain_second:        qn('domainSecond')?.value,
+      services_offered:     qn('servicesOffered')?.value,
+      lead_magnet:          qn('leadMagnet')?.value,
+      business_hours_days:  getCheckedValues('hoursDays'),
+      business_hours_start: qn('hoursStart')?.value,
+      business_hours_end:   qn('hoursEnd')?.value,
+      emergency_service:    qn('emergencyService')?.value,
+      logo_url:             qn('logoUrl')?.value,
+      brand_color_primary:  qn('brandColorPrimary')?.value,
+      brand_color_accent:   qn('brandColorAccent')?.value,
+      tone:                 qn('tone')?.value,
+      differentiator:       qn('differentiator')?.value,
+      facebook_url:         qn('facebookUrl')?.value,
+      gmb_status:           qn('gmbStatus')?.value,
+      reviews_url:          qn('reviewsUrl')?.value,
+      online_notes:         qn('onlineNotes')?.value,
+      has_customer_list:    qn('hasCustomerList')?.value,
+      customer_notes:       qn('customerNotes')?.value,
+      site_notes:           qn('siteNotes')?.value,
+      client_questions:     qn('clientQuestions')?.value,
+      onboarding_status:    'complete',
+    },
+    summary: buildSummary(),
+  };
+
+  try {
+    const resp = await fetch(`${WORKER_BASE}/agency/onboarding`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!resp.ok) throw new Error(`${resp.status}`);
+
+    $('printOutput').textContent = buildSummary();
+    $('printOutput').style.display = 'block';
+    $('copyBtn').style.display = 'inline-block';
+    $('successSection').style.display = 'block';
+    $('successSection').scrollIntoView({ behavior: 'smooth' });
+    btn.textContent = '✅ Submitted!';
+  } catch (err) {
+    btn.textContent = 'Submit My Info →';
+    btn.disabled = false;
+    // Fallback: show summary so they can copy + email
+    $('printOutput').textContent = buildSummary();
+    $('printOutput').style.display = 'block';
+    $('copyBtn').style.display = 'inline-block';
+    alert('Submission failed — please copy the summary below and email it to your Acme Agency contact.');
+  }
+}
+
+function copyOutput() {
+  navigator.clipboard.writeText($('printOutput').textContent).then(() => {
+    $('copyBtn').textContent = '✅ Copied!';
+    setTimeout(() => { $('copyBtn').textContent = '📋 Copy Summary'; }, 2000);
+  });
+}
+
+// ── Cold-URL intake (no ?cid= in URL) ──────────────────
+function showIntakeScreen() {
+  $('intakeScreen').classList.add('active');
+  $('mainContainer').style.display = 'none';
+  // Hide progress bar + banners until intake completes
+  document.querySelector('.progress-bar').style.display = 'none';
+}
+
+function showMainForm() {
+  $('intakeScreen').classList.remove('active');
+  $('mainContainer').style.display = '';
+  document.querySelector('.progress-bar').style.display = '';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function showIntakeError(msg) {
+  const err = $('intakeError');
+  err.textContent = msg;
+  err.classList.add('show');
+}
+
+function clearIntakeError() {
+  $('intakeError').classList.remove('show');
+}
+
+async function submitIntake() {
+  clearIntakeError();
+  const firstName   = $('intake-first').value.trim();
+  const lastName    = $('intake-last').value.trim();
+  const email       = $('intake-email').value.trim();
+  const companyName = $('intake-company').value.trim();
+  const phone       = $('intake-phone').value.trim();
+
+  if (!firstName || !lastName) {
+    showIntakeError('Please enter your first and last name.');
+    return;
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    showIntakeError('Please enter a valid email address.');
+    return;
+  }
+
+  const btn = $('intakeSubmit');
+  btn.disabled = true;
+  btn.textContent = 'Setting things up…';
+
+  try {
+    const resp = await fetch(`${WORKER_BASE}/agency/intake`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ firstName, lastName, email, phone, companyName }),
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data.ok || !data.cid) {
+      throw new Error(data.error || 'Could not create your record. Please try again.');
+    }
+
+    // Stash the new CID
+    $('hiddenCid').value = data.cid;
+
+    // Defensive seed: populate the visible form with what they just typed.
+    // If the upsert matched an existing contact, loadContact() below will
+    // overwrite these with GHL's values where it has them; if loadContact
+    // fails (network blip), the user keeps what they typed instead of a
+    // blank form.
+    setField('pw-first', 'f-firstName', firstName);
+    setField('pw-last',  'f-lastName',  lastName);
+    setField('pw-email', 'f-email',     email);
+    if (companyName) setField('pw-biz',   'f-companyName', companyName);
+    if (phone)       setField('pw-phone', 'f-phone',       phone);
+    buildDomainSuggestions(companyName);
+
+    showMainForm();
+
+    if (data.isNew === false) {
+      // Email matched an existing contact — pre-fill everything we already
+      // have on file, exactly like the warm-URL flow. loadContact() handles
+      // its own greeting banner ("We've pre-filled what we already have").
+      await loadContact(data.cid);
+    } else {
+      // Brand-new contact — show the cold-intake greeting.
+      $('greetingBanner').textContent =
+        `👋 Hi, ${firstName}! Just a few more details and you're all set.`;
+      $('greetingBanner').style.display = 'block';
+    }
+
+    updateProgress();
+  } catch (err) {
+    console.error('Intake failed:', err);
+    showIntakeError(err.message || 'Something went wrong. Please try again or email us directly.');
+    btn.disabled = false;
+    btn.textContent = 'Continue →';
+  }
+}
+
+// ── Init ───────────────────────────────────────────────
+(function init() {
+  // Set agency label
+  if (typeof AGENCY_NAME !== 'undefined') {
+    $('agencyLabel').textContent = AGENCY_NAME;
+  }
+  // Read ?cid= from URL
+  const params = new URLSearchParams(window.location.search);
+  const cid = params.get('cid');
+  if (cid) {
+    // ── Warm-URL flow: pre-fill from GHL ──
+    $('hiddenCid').value = cid;
+    loadContact(cid);
+  } else {
+    // ── Cold-URL flow: collect name+email first, upsert, then continue ──
+    showIntakeScreen();
+    $('intakeSubmit').addEventListener('click', submitIntake);
+    // Enter key in the intake form should submit
+    ['intake-first','intake-last','intake-email','intake-company','intake-phone'].forEach(id => {
+      $(id).addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); submitIntake(); }
+      });
+    });
+    // Domain suggestions follow the company name input on the main form too
+    $('f-companyName')?.addEventListener('input', e => buildDomainSuggestions(e.target.value));
+  }
+  updateProgress();
+})();
+</script>
+
+</body>
+</html>
